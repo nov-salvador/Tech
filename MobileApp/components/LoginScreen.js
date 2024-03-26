@@ -22,6 +22,8 @@ const LoginScreen = ({ navigation }) => {
 
       if (data.token) {
         setErrorMessage('');
+        setEmail('');
+        setPassword('');
         navigation.navigate('Home');
       } else {
         setErrorMessage('Invalid email or password');

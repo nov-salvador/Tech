@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useReducer } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {historyReducer} from './../reducers/historyReducer';
+import { FontAwesome } from '@expo/vector-icons';
 
 const HomeScreen = ({ navigation }) => {
   const [ipAddress, setIpAddress] = useState('');
   const [searchedIp, setSearchedIp] = useState('');
   const [searchedGeoInfo, setSearchedGeoInfo] = useState(null);
+  const [userGeoInfo, setUserGeoInfo] = useState(null);
   const [error, setError] = useState('');
+  const [history, dispatch] = useReducer(historyReducer, []);
 
   const fetchGeoInfo = async (ip) => {
     try {
@@ -13,6 +18,10 @@ const HomeScreen = ({ navigation }) => {
       const data = await response.json();
       setSearchedGeoInfo(data);
       setError('');
+
+      // Save search history
+      dispatch({ type: 'ADD_SEARCH', payload: ip });
+      saveToHistory();
     } catch (err) {
       setError('Error fetching geolocation information');
     }
@@ -23,7 +32,9 @@ const HomeScreen = ({ navigation }) => {
       const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
       setIpAddress(data.ip);
-      setSearchedIp('');
+      const geoResponse = await fetch(`https://ipinfo.io/${data.ip}/geo`);
+      const geoData = await geoResponse.json();
+      setUserGeoInfo(geoData);
       fetchGeoInfo(data.ip);
     } catch (err) {
       setError('Error fetching current IP address');
@@ -32,6 +43,7 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchCurrentUserIp();
+    loadHistory();
   }, []);
 
   const handleSearch = () => {
@@ -43,11 +55,11 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleClear = () => {
+    setSearchedIp('');
     fetchCurrentUserIp();
   };
 
   const handleLogout = () => {
-    // Navigate back to login screen
     navigation.navigate('Login');
   };
 
@@ -56,6 +68,25 @@ const HomeScreen = ({ navigation }) => {
       '^([0-9]{1,3}\\.){3}[0-9]{1,3}$'
     );
     return ipPattern.test(ip);
+  };
+
+  const saveToHistory = async () => {
+    try {
+      await AsyncStorage.setItem('searchHistory', JSON.stringify(history));
+    } catch (error) {
+      console.error('Error saving to history:', error);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const existingHistory = await AsyncStorage.getItem('searchHistory');
+      if (existingHistory) {
+        dispatch({ type: 'ADD_SEARCH', payload: JSON.parse(existingHistory) });
+      }
+    } catch (error) {
+      console.error('Error loading history:', error);
+    }
   };
 
   return (
@@ -80,10 +111,30 @@ const HomeScreen = ({ navigation }) => {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <FlatList
+        data={history}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => fetchGeoInfo(item)}>
+            <Text>{item}</Text>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+        ListEmptyComponent={<Text>No search history</Text>}
+      />
+
       <View style={styles.geoInfoContainer}>
         <Text style={styles.subtitle}>User IP Information</Text>
         <View>
           <Text>IP Address: {ipAddress}</Text>
+          {userGeoInfo && (
+            <>
+              <Text>City: {userGeoInfo.city}</Text>
+              <Text>Region: {userGeoInfo.region}</Text>
+              <Text>Country: {userGeoInfo.country}</Text>
+              <Text>Location: {userGeoInfo.loc}</Text>
+              <Text>Postal: {userGeoInfo.postal}</Text>
+            </>
+          )}
         </View>
       </View>
 
@@ -94,12 +145,10 @@ const HomeScreen = ({ navigation }) => {
           <Text>City: {searchedGeoInfo.city}</Text>
           <Text>Region: {searchedGeoInfo.region}</Text>
           <Text>Country: {searchedGeoInfo.country}</Text>
-          <Text>Location: {searchedGeoInfo.loc}</Text>
+          <Text>Location: {searchedGeoInfo.location}</Text>
           <Text>Postal: {searchedGeoInfo.postal}</Text>
         </View>
-      ) : (
-        <Text></Text>
-      )}
+      ) : null}
 
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.buttonText}>Logout</Text>
