@@ -133,6 +133,7 @@ const HomeScreen = ({ navigation }) => {
               <Text>Country: {userGeoInfo.country}</Text>
               <Text>Location: {userGeoInfo.loc}</Text>
               <Text>Postal: {userGeoInfo.postal}</Text>
+              <Text>Timezone: {userGeoInfo.timezone}</Text>
             </>
           )}
         </View>
@@ -147,6 +148,7 @@ const HomeScreen = ({ navigation }) => {
           <Text>Country: {searchedGeoInfo.country}</Text>
           <Text>Location: {searchedGeoInfo.location}</Text>
           <Text>Postal: {searchedGeoInfo.postal}</Text>
+          <Text>Timezone: {searchedGeoInfo.timezone}</Text>
         </View>
       ) : null}
 
